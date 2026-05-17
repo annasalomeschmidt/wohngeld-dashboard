@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wohngeld-Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f4f3ef;
+    --surface: #ffffff;
+    --border: #e2e0d8;
+    --text: #1a1a18;
+    --text-muted: #6b6b66;
+    --accent: #3d4fa0;
+    --accent-light: #eef0fa;
+    --green: #0f6e56;
+    --green-light: #e1f5ee;
+    --amber: #854f0b;
+    --amber-light: #faeeda;
+    --red: #a32d2d;
+    --red-light: #fcebeb;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* TOPBAR */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .topbar-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .topbar-sub { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+  .live { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* LAYOUT */
+  .layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 260px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .sidebar-head {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .count-badge {
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 10px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .case-list { flex: 1; overflow-y: auto; }
+  .case-item {
+    padding: 12px 16px;
+    border-left: 3px solid transparent;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .case-item:hover { background: var(--bg); }
+  .case-item.active { background: var(--accent-light); border-left-color: var(--accent); }
+  .case-item.new { border-left-color: var(--green); }
+  .case-item-id { font-size: 12px; font-weight: 600; color: var(--text); }
+  .case-item-name { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .case-item-time { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 8px;
+    margin-top: 5px;
+  }
+  .badge-new { background: var(--green-light); color: var(--green); }
+  .badge-done { background: var(--border); color: var(--text-muted); }
+  .badge-warn { background: var(--amber-light); color: var(--amber); }
+
+  .empty-sidebar {
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  /* MAIN */
+  .main { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+
+  .empty-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 14px;
+    gap: 8px;
+    text-align: center;
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 8px; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .card-head {
+    padding: 13px 18px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-body { padding: 18px; }
+
+  /* META GRID */
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .meta-label { font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
+  .meta-value { font-size: 13px; font-weight: 500; color: var(--text); }
+  .meta-value.green { color: var(--green); font-size: 15px; }
+
+  /* CHECKS */
+  .check-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .check-row:last-child { border-bottom: none; }
+  .check-icon {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+  .check-ok { background: var(--green-light); color: var(--green); }
+  .check-warn { background: var(--amber-light); color: var(--amber); }
+  .check-label { font-weight: 500; }
+  .check-value { color: var(--text-muted); margin-left: auto; font-size: 11px; }
+
+  /* BESCHEID */
+  .bescheid-box {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 18px;
+    font-size: 13px;
+    line-height: 1.75;
+    color: var(--text);
+  }
+  .bescheid-box h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .bescheid-amount {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--green);
+    margin: 14px 0 4px;
+  }
+  .bescheid-amount-label { font-size: 12px; color: var(--text-muted); }
+
+  /* FEEDBACK */
+  .form-label { font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; display: block; }
+  select, textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--surface);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  select:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 80px; }
+  .btn-row { display: flex; gap: 10px; margin-top: 4px; }
+  .btn {
+    padding: 9px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { border-color: #aaa; }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    padding: 11px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    opacity: 0;
+    transition: opacity 0.25s;
+    pointer-events: none;
+    z-index: 999;
+  }
+  .toast.show { opacity: 1; }
+
+  /* CONFIG OVERLAY */
+  .config-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .config-box {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 28px;
+    width: 480px;
+    max-width: 95vw;
+  }
+  .config-box h2 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .config-box p { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6; }
+  .config-field { margin-bottom: 14px; }
+  .config-field label { font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 5px; }
+  .config-field input {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: monospace;
+    outline: none;
+  }
+  .config-field input:focus { border-color: var(--accent); }
+  .config-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar-title">Wohngeld-Dashboard</div>
+    <div class="topbar-sub">Sachbearbeiter-Ansicht</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div class="live">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Verbunden</span>
+    </div>
+    <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px" onclick="showConfig()">⚙ Einstellungen</button>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-head">
+      Posteingang
+      <span class="count-badge" id="caseCount">0</span>
+    </div>
+    <div class="case-list" id="caseList">
+      <div class="empty-sidebar">Noch keine Fälle eingegangen.<br>Warte auf neue Anträge…</div>
+    </div>
+  </div>
+
+  <div class="main" id="mainArea">
+    <div class="empty-main">
+      <div class="empty-icon">📋</div>
+      <div style="font-weight:600;font-size:15px">Kein Fall ausgewählt</div>
+      <div style="font-size:13px;margin-top:4px">Wähle einen Fall aus der Liste links<br>oder warte auf neue Anträge.</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- CONFIG OVERLAY -->
+<div class="config-overlay" id="configOverlay">
+  <div class="config-box">
+    <h2>Dashboard einrichten</h2>
+    <p>Trage hier die Webhook-URL aus deinem n8n-Workflow ein. Diese URL findest du im n8n-Node „Positivbescheid – Sachbearbeiter-Freigabe" unter „Test URL" oder nach dem Aktivieren des Workflows.</p>
+    <div class="config-field">
+      <label>n8n Webhook URL (zum Empfangen neuer Fälle)</label>
+      <input type="text" id="configWebhookUrl" placeholder="https://dein-name.app.n8n.cloud/webhook/bescheid-neu" />
+      <div class="config-hint">Diese URL muss in n8n als HTTP Request Node vor dem Wait-Node eingetragen sein.</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveConfig()">Speichern & starten</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── KONFIGURATION ───────────────────────────────────────────
+let CONFIG = {
+  webhookUrl: localStorage.getItem('wg_webhook_url') || ''
+};
+
+let cases = JSON.parse(localStorage.getItem('wg_cases') || '[]');
+let activeCase = null;
+let pollInterval = null;
+
+// ─── INIT ────────────────────────────────────────────────────
+function init() {
+  if (!CONFIG.webhookUrl) {
+    document.getElementById('configOverlay').style.display = 'flex';
+  } else {
+    document.getElementById('configOverlay').style.display = 'none';
+    startPolling();
+  }
+  renderCaseList();
+}
+
+function showConfig() {
+  document.getElementById('configWebhookUrl').value = CONFIG.webhookUrl;
+  document.getElementById('configOverlay').style.display = 'flex';
+}
+
+function saveConfig() {
+  const url = document.getElementById('configWebhookUrl').value.trim();
+  if (!url) { showToast('Bitte eine URL eingeben', true); return; }
+  CONFIG.webhookUrl = url;
+  localStorage.setItem('wg_webhook_url', url);
+  document.getElementById('configOverlay').style.display = 'none';
+  startPolling();
+  showToast('Gespeichert – Dashboard ist aktiv');
+}
+
+// ─── POLLING ─────────────────────────────────────────────────
+function startPolling() {
+  if (pollInterval) clearInterval(pollInterval);
+  poll();
+  pollInterval = setInterval(poll, 8000);
+}
+
+async function poll() {
+  if (!CONFIG.webhookUrl) return;
+  try {
+    const url = CONFIG.webhookUrl.replace('/webhook/', '/webhook/').replace(/\/$/, '') + '-status';
+    const res = await fetch(CONFIG.webhookUrl + '-status', { method: 'GET' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && data.cases) {
+      mergeNewCases(data.cases);
+    }
+    setStatus(true);
+  } catch(e) {
+    setStatus(false);
+  }
+}
+
+function mergeNewCases(incoming) {
+  let changed = false;
+  for (const c of incoming) {
+    const existing = cases.find(x => x.caseId === c.caseId);
+    if (!existing) {
+      cases.unshift(c);
+      changed = true;
+      showToast('Neuer Fall: ' + c.caseId);
+    }
+  }
+  if (changed) {
+    localStorage.setItem('wg_cases', JSON.stringify(cases));
+    renderCaseList();
+  }
+}
+
+// ─── n8n DIREKTAUFRUF ────────────────────────────────────────
+// Diese Funktion wird von n8n aufgerufen via HTTP Request Node
+// n8n schickt POST an: [dashboard-url]?action=newCase
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'newCase') {
+    addCase(e.data.payload);
+  }
+});
+
+// Globale Funktion die n8n per URL-Parameter triggern kann
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('action') === 'newCase') {
+  const payload = urlParams.get('data');
+  if (payload) {
+    try { addCase(JSON.parse(decodeURIComponent(payload))); } catch(e) {}
+  }
+}
+
+function addCase(caseData) {
+  const existing = cases.find(x => x.caseId === caseData.caseId);
+  if (!existing) {
+    caseData.receivedAt = new Date().toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
+    caseData.status = 'new';
+    cases.unshift(caseData);
+    localStorage.setItem('wg_cases', JSON.stringify(cases));
+    renderCaseList();
+    showToast('Neuer Fall eingegangen: ' + caseData.caseId);
+  }
+}
+
+// ─── RENDER ──────────────────────────────────────────────────
+function setStatus(ok) {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  dot.style.background = ok ? 'var(--green)' : 'var(--amber)';
+  dot.style.animation = ok ? '' : 'none';
+  txt.textContent = ok ? 'Verbunden' : 'Keine Verbindung';
+}
+
+function renderCaseList() {
+  const el = document.getElementById('caseList');
+  const count = document.getElementById('caseCount');
+  const newCount = cases.filter(c => c.status === 'new').length;
+  count.textContent = newCount;
+
+  if (cases.length === 0) {
+    el.innerHTML = '<div class="empty-sidebar">Noch keine Fälle eingegangen.<br>Warte auf neue Anträge…</div>';
+    return;
+  }
+
+  el.innerHTML = cases.map(c => `
+    <div class="case-item ${c.status === 'new' ? 'new' : ''} ${activeCase && activeCase.caseId === c.caseId ? 'active' : ''}"
+         onclick="openCase('${c.caseId}')">
+      <div class="case-item-id">${c.caseId}</div>
+      <div class="case-item-name">${c.applicantName || '–'}</div>
+      <div class="case-item-time">${c.receivedAt || ''}</div>
+      <span class="badge ${c.status === 'new' ? 'badge-new' : c.status === 'warn' ? 'badge-warn' : 'badge-done'}">
+        ${c.status === 'new' ? 'Neu' : c.status === 'warn' ? 'Manuell prüfen' : 'Abgeschlossen'}
+      </span>
+    </div>
+  `).join('');
+}
+
+function openCase(id) {
+  activeCase = cases.find(c => c.caseId === id);
+  renderCaseList();
+  renderMain();
+}
+
+function renderMain() {
+  const c = activeCase;
+  if (!c) return;
+
+  const formalOk = c.formalCheck === 'PFLICHTANGABEN_ERFUELLT' || c.formalCheck === true || c.formalCheck === 'OK';
+  const consistencyOk = c.consistencyCheck === 'KONSISTENT' || c.consistencyCheck === true || c.consistencyCheck === 'OK';
+  const materialOk = c.materialCheck === 'MATERIELL_PLAUSIBEL' || c.materialCheck === true || c.materialCheck === 'OK';
+
+  const isPositiv = formalOk && consistencyOk && materialOk;
+
+  document.getElementById('mainArea').innerHTML = `
+    <div class="card">
+      <div class="card-head">
+        👤 Antragsdaten
+        <span class="badge ${isPositiv ? 'badge-new' : 'badge-warn'}">${isPositiv ? 'Positivbescheid' : 'Manuelle Prüfung'}</span>
+      </div>
+      <div class="card-body">
+        <div class="meta-grid">
+          <div><div class="meta-label">Antragsteller:in</div><div class="meta-value">${c.applicantName || '–'}</div></div>
+          <div><div class="meta-label">Fall-ID</div><div class="meta-value">${c.caseId}</div></div>
+          <div><div class="meta-label">Nettoeinkommen</div><div class="meta-value">${c.income || '–'}</div></div>
+          <div><div class="meta-label">Miete gesamt</div><div class="meta-value">${c.rent || '–'}</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">✅ KI-Prüfergebnis</div>
+      <div class="card-body">
+        <div class="check-row">
+          <div class="check-icon ${formalOk ? 'check-ok' : 'check-warn'}">${formalOk ? '✓' : '!'}</div>
+          <span class="check-label">Formelle Prüfung</span>
+          <span class="check-value">${c.formalCheck || '–'}</span>
+        </div>
+        <div class="check-row">
+          <div class="check-icon ${consistencyOk ? 'check-ok' : 'check-warn'}">${consistencyOk ? '✓' : '!'}</div>
+          <span class="check-label">Konsistenzprüfung</span>
+          <span class="check-value">${c.consistencyCheck || '–'}</span>
+        </div>
+        <div class="check-row">
+          <div class="check-icon ${materialOk ? 'check-ok' : 'check-warn'}">${materialOk ? '✓' : '!'}</div>
+          <span class="check-label">Materielle Prüfung</span>
+          <span class="check-value">${c.materialCheck || '–'}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">📄 Bescheid-Entwurf</div>
+      <div class="card-body">
+        <div class="bescheid-box">
+          <h4>Bescheid über Wohngeld (Mietzuschuss) – ${c.caseId}</h4>
+          <div>${c.bescheidText || '<em>Kein Bescheid-Text vorhanden</em>'}</div>
+          ${c.wohngeld ? `<div class="bescheid-amount">${c.wohngeld}</div><div class="bescheid-amount-label">monatlicher Mietzuschuss</div>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">💬 Ihre Entscheidung</div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+        <div>
+          <label class="form-label">Entscheidung *</label>
+          <select id="feedbackSelect">
+            <option value="">— bitte wählen —</option>
+            ${isPositiv ? '<option value="Bescheid freigeben">Bescheid freigeben</option>' : ''}
+            <option value="Mit Hinweis weiterprüfen">Mit Hinweis weiterprüfen</option>
+            <option value="Sachbearbeiter:in übernimmt Bearbeitung">Sachbearbeiter:in übernimmt Bearbeitung</option>
+            <option value="Weitere Unterlagen erforderlich">Weitere Unterlagen erforderlich</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Hinweis (optional)</label>
+          <textarea id="feedbackText" placeholder="Optionaler Hinweis oder Begründung…"></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="submitFeedback()">Absenden →</button>
+          <button class="btn btn-secondary" onclick="showToast('Noch nicht implementiert')">Zwischenspeichern</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function submitFeedback() {
+  const entscheidung = document.getElementById('feedbackSelect')?.value;
+  const hinweis = document.getElementById('feedbackText')?.value || '';
+
+  if (!entscheidung) { showToast('Bitte eine Entscheidung wählen', true); return; }
+  if (!activeCase?.resumeUrl) { showToast('Keine Resume-URL vorhanden – Fall kann nicht abgeschlossen werden', true); return; }
+
+  try {
+    const res = await fetch(activeCase.resumeUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ Entscheidung: entscheidung, Hinweis: hinweis })
+    });
+
+    if (res.ok || res.status === 200) {
+      activeCase.status = 'done';
+      const idx = cases.findIndex(c => c.caseId === activeCase.caseId);
+      if (idx > -1) cases[idx] = activeCase;
+      localStorage.setItem('wg_cases', JSON.stringify(cases));
+      renderCaseList();
+      showToast('Feedback übermittelt – Workflow läuft weiter ✓');
+      document.getElementById('mainArea').innerHTML = `
+        <div class="empty-main">
+          <div class="empty-icon">✅</div>
+          <div style="font-weight:600;font-size:15px">Fall abgeschlossen</div>
+          <div style="font-size:13px;margin-top:4px">Das Feedback wurde an n8n übergeben.</div>
+        </div>`;
+    } else {
+      showToast('Fehler beim Senden – bitte nochmal versuchen', true);
+    }
+  } catch(e) {
+    showToast('Verbindungsfehler: ' + e.message, true);
+  }
+}
+
+function showToast(msg, error) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = error ? 'var(--red)' : 'var(--green)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ─── START ───────────────────────────────────────────────────
+init();
+
+// Testfall zum Ausprobieren (wird nach 2s eingefügt wenn keine echten Daten da)
+setTimeout(() => {
+  if (cases.length === 0) {
+    addCase({
+      caseId: 'WG-2025-DEMO-001',
+      applicantName: 'Maria Mustermann (Demo)',
+      income: '1.420,00 €',
+      rent: '650,00 €',
+      wohngeld: '187,00 €',
+      formalCheck: 'PFLICHTANGABEN_ERFUELLT',
+      consistencyCheck: 'KONSISTENT',
+      materialCheck: 'MATERIELL_PLAUSIBEL',
+      bescheidText: 'Auf Ihren Antrag vom 17.05.2025 wird Ihnen nach Prüfung der eingereichten Unterlagen ein Mietzuschuss (Wohngeld) in Höhe von <strong>187,00 € monatlich</strong> bewilligt. Der Bescheid gilt ab dem 01.06.2025 und ist zunächst auf 12 Monate befristet.',
+      resumeUrl: null
+    });
+  }
+}, 2000);
+</script>
+</body>
+</html>
